@@ -1,0 +1,49 @@
+Description: CloudFormation template for Aurora Digital ASG
+
+Resources:
+  WebServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP access
+      VpcId: vpc-00c59001574cbeeba
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  LaunchTemplate:
+    Type: 'AWS::EC2::LaunchTemplate'
+    Properties:
+      LaunchTemplateName: AuroraDigitalLaunchTemplate
+      LaunchTemplateData:
+        InstanceType: t2.micro
+        ImageId:  ami-08b5b3a93ed654d19
+        SecurityGroupIds:
+          - !Ref WebServerSecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            dnf update -y
+            dnf install -y httpd
+            systemctl start httpd
+            systemctl enable httpd
+            echo "<h1>"Hello World from Aurora Digital! Welcome to our new store!!!"  $(hostname -f)</h1>" > /var/www/html/index.html
+        
+  AutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - subnet-033f8839b8731f969
+        - subnet-0fec43a4c0bcf1a33
+        - subnet-09eff0b6eb65ca1f2
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: '2'
+      MaxSize: '5'
+      DesiredCapacity: '3'

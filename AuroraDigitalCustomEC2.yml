@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation Template to deploy EC2 instance with Apache Webserver For Aurora Digital
+
+Resources:
+
+  # Security Group for Apache Web Server
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP and SSH access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+
+    # EC2 Instance
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro  # Change as per your needs
+      KeyName: !Ref KeyName  # Replace with your EC2 Key Pair name
+      ImageId: ami-08b5b3a93ed654d19  # Amazon Linux 2 AMI (change if necessary)
+      SecurityGroups:
+        - !Ref WebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "Hello World from Aurora Digital! Welcome to our new store!!!" > /var/www/html/index.html
+          systemctl restart httpd
+      Tags:
+        - Key: Name 
+          Value: AuroraDigitalWebserver
+
+Parameters:
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: The ID of the public subnet where the instance will be deployed
+    Default: subnet-xxxxxxxx  # Default subnet ID of your VPC's public subnet
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: The EC2 KeyPair to SSH into the instance
+    Default: my-key-pair  # Replace with your EC2 KeyPair
+
+Outputs:
+
+  WebServerInstancePublicIP:
+    Description: "Public IP of the web server instance"
+    Value: !GetAtt WebServerInstance.PublicIp
+  WebServerURL:
+    Description: "URL of the Apache Web Server"
+    Value: !Sub "http://${WebServerInstance.PublicIp}"
+  InstanceId:
+    Description: ID of the EC2 instance
+    Value: !Ref WebServerInstance
+    
+  
